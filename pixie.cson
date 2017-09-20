@@ -1,0 +1,3 @@
+dependencies:
+  postmaster: "distri/postmaster:master"
+  ui: "STRd6/ui:master"
