@@ -191,56 +191,62 @@
       "mode": "100644",
       "type": "blob"
     },
-    "pixie.cson": {
-      "path": "pixie.cson",
-      "content": "dependencies:\n  postmaster: \"distri/postmaster:master\"\n  ui: \"STRd6/ui:master\"\n",
-      "mode": "100644"
+    "extensions.coffee": {
+      "path": "extensions.coffee",
+      "content": "# Add some utility readers to the Blob API\nBlob::readAsText = ->\n  file = this\n\n  new Promise (resolve, reject) ->\n    reader = new FileReader\n    reader.onload = ->\n      resolve reader.result\n    reader.onerror = reject\n    reader.readAsText(file)\n\nBlob::getURL = ->\n  Promise.resolve URL.createObjectURL(this)\n\nBlob::readAsJSON = ->\n  @readAsText()\n  .then JSON.parse\n\nBlob::readAsDataURL = ->\n  file = this\n\n  new Promise (resolve, reject) ->\n    reader = new FileReader\n    reader.onload = ->\n      resolve reader.result\n    reader.onerror = reject\n    reader.readAsDataURL(file)\n\n# Load an image from a blob returning a promise that is fulfilled with the\n# loaded image or rejected with an error\nImage.fromBlob = (blob) ->\n  blob.getURL()\n  .then (url) ->\n    new Promise (resolve, reject) ->\n      img = new Image\n      img.onload = ->\n        resolve img\n      img.onerror = reject\n\n      img.src = url\n",
+      "mode": "100644",
+      "type": "blob"
     },
     "lib/system-client.coffee": {
       "path": "lib/system-client.coffee",
-      "content": "# system-client is what prepares the environment for user apps\n# we hook up the postmaster and proxy messages to the OS\n# we also provide system packages for the application to use like UI\n\nmodule.exports = ->\n  # NOTE: These required packages get populated from the parent package when building\n  # the runnable app. See util.coffee\n  Postmaster = require \"postmaster\"\n  UI = require \"ui\"\n\n  style = document.createElement \"style\"\n  style.innerHTML = UI.Style.all\n  document.head.appendChild style\n\n  postmaster = Postmaster()\n\n  applicationProxy = new Proxy\n    ready: ->\n      postmaster.invokeRemote \"childLoaded\"\n  ,\n    get: (target, property, receiver) ->\n      target[property] or\n      ->\n        postmaster.invokeRemote \"application\", property, arguments...\n\n  systemProxy = new Proxy\n    Observable: UI.Observable\n    UI: UI\n  ,\n    get: (target, property, receiver) ->\n      target[property] or\n      ->\n        postmaster.invokeRemote \"system\", property, arguments...\n\n  # TODO: Also interesting would be to proxy observable arguments where we\n  # create the receiver on the opposite end of the membrane and pass messages\n  # back and forth like magic\n\n  document.addEventListener \"mousedown\", ->\n    applicationProxy.raiseToTop()\n\n  system: systemProxy\n  application: applicationProxy\n  postmaster: postmaster\n",
-      "mode": "100644"
+      "content": "# system-client is what prepares the environment for user apps\n# we hook up the postmaster and proxy messages to the OS\n# we also provide system packages for the application to use like UI\n\nmodule.exports = ->\n  # NOTE: These required packages get populated from the parent package when building\n  # the runnable app. See util.coffee\n  Postmaster = require \"postmaster\"\n  UI = require \"ui\"\n\n  style = document.createElement \"style\"\n  style.innerHTML = UI.Style.all\n  document.head.appendChild style\n\n  postmaster = Postmaster()\n\n  applicationProxy = new Proxy {}\n  ,\n    get: (target, property, receiver) ->\n      target[property] or\n      ->\n        postmaster.invokeRemote \"application\", property, arguments...\n\n  systemProxy = new Proxy\n    Observable: UI.Observable\n    UI: UI\n  ,\n    get: (target, property, receiver) ->\n      target[property] or\n      ->\n        postmaster.invokeRemote \"system\", property, arguments...\n\n  # TODO: Also interesting would be to proxy observable arguments where we\n  # create the receiver on the opposite end of the membrane and pass messages\n  # back and forth like magic\n\n  document.addEventListener \"mousedown\", ->\n    applicationProxy.raiseToTop()\n\n  postmaster.invokeRemote \"childLoaded\"\n  .then (result) ->\n    console.log result\n\n    appData = result?.ZineOS\n\n    return appData\n  .catch (e) ->\n    console.error e\n  .then (data) ->\n    system: systemProxy\n    application: applicationProxy\n    postmaster: postmaster\n",
+      "mode": "100644",
+      "type": "blob"
     },
     "main.coffee": {
       "path": "main.coffee",
-      "content": "require \"./extensions\"\n\nSystemClient = require \"./lib/system-client\"\n\n{system, application} = SystemClient()\n\n{UI, Observable} = system\n\n{Modal} = UI\n\nTemplate = require \"./templates/main\"\n\nelement = Template\n  open: ->\n    Modal.prompt \"Path\", \"somefile.txt\"\n    .then (result) ->\n      if result\n        system.readFile result\n        .then (blob) ->\n          if blob.type.match /^image/\n            Image.fromBlob blob\n            .then (img) ->\n              document.body.appendChild img\n          else if blob.type.match /^text/\n            blob.readAsText().then (text) ->\n              pre = document.createElement \"pre\"\n              pre.textContent = text\n              document.body.appendChild pre\n          else\n            console.warn \"Can't yet handle \", blob.type\n\ndocument.body.appendChild element\n",
-      "mode": "100644"
+      "content": "require \"./extensions\"\n\nSystemClient = require \"./lib/system-client\"\n\nSystemClient()\n.then ({system, application}) ->\n  {UI, Observable} = system\n  \n  {Modal} = UI\n  \n  Template = require \"./templates/main\"\n  \n  element = Template\n    open: ->\n      Modal.prompt \"Path\", \"somefile.txt\"\n      .then (result) ->\n        if result\n          system.readFile result\n          .then (blob) ->\n            if blob.type.match /^image/\n              Image.fromBlob blob\n              .then (img) ->\n                document.body.appendChild img\n            else if blob.type.match /^text/\n              blob.readAsText().then (text) ->\n                pre = document.createElement \"pre\"\n                pre.textContent = text\n                document.body.appendChild pre\n            else\n              console.warn \"Can't yet handle \", blob.type\n  \n  document.body.appendChild element\n",
+      "mode": "100644",
+      "type": "blob"
     },
-    "templates/main.jadelet": {
-      "path": "templates/main.jadelet",
-      "content": "main\n  button(click=@open) Open\n",
-      "mode": "100644"
+    "pixie.cson": {
+      "path": "pixie.cson",
+      "content": "dependencies:\n  postmaster: \"distri/postmaster:master\"\n  ui: \"STRd6/ui:master\"\n",
+      "mode": "100644",
+      "type": "blob"
     },
     "templates/item.jadelet": {
       "path": "templates/item.jadelet",
       "content": "li\n  span.name= @name\n",
-      "mode": "100644"
+      "mode": "100644",
+      "type": "blob"
     },
-    "extensions.coffee": {
-      "path": "extensions.coffee",
-      "content": "# Add some utility readers to the Blob API\nBlob::readAsText = ->\n  file = this\n\n  new Promise (resolve, reject) ->\n    reader = new FileReader\n    reader.onload = ->\n      resolve reader.result\n    reader.onerror = reject\n    reader.readAsText(file)\n\nBlob::getURL = ->\n  Promise.resolve URL.createObjectURL(this)\n\nBlob::readAsJSON = ->\n  @readAsText()\n  .then JSON.parse\n\nBlob::readAsDataURL = ->\n  file = this\n\n  new Promise (resolve, reject) ->\n    reader = new FileReader\n    reader.onload = ->\n      resolve reader.result\n    reader.onerror = reject\n    reader.readAsDataURL(file)\n\n# Load an image from a blob returning a promise that is fulfilled with the\n# loaded image or rejected with an error\nImage.fromBlob = (blob) ->\n  blob.getURL()\n  .then (url) ->\n    new Promise (resolve, reject) ->\n      img = new Image\n      img.onload = ->\n        resolve img\n      img.onerror = reject\n\n      img.src = url\n",
-      "mode": "100644"
+    "templates/main.jadelet": {
+      "path": "templates/main.jadelet",
+      "content": "main\n  button(click=@open) Open\n",
+      "mode": "100644",
+      "type": "blob"
     }
   },
   "distribution": {
-    "pixie": {
-      "path": "pixie",
-      "content": "module.exports = {\"dependencies\":{\"postmaster\":\"distri/postmaster:master\",\"ui\":\"STRd6/ui:master\"}};",
+    "extensions": {
+      "path": "extensions",
+      "content": "(function() {\n  Blob.prototype.readAsText = function() {\n    var file;\n    file = this;\n    return new Promise(function(resolve, reject) {\n      var reader;\n      reader = new FileReader;\n      reader.onload = function() {\n        return resolve(reader.result);\n      };\n      reader.onerror = reject;\n      return reader.readAsText(file);\n    });\n  };\n\n  Blob.prototype.getURL = function() {\n    return Promise.resolve(URL.createObjectURL(this));\n  };\n\n  Blob.prototype.readAsJSON = function() {\n    return this.readAsText().then(JSON.parse);\n  };\n\n  Blob.prototype.readAsDataURL = function() {\n    var file;\n    file = this;\n    return new Promise(function(resolve, reject) {\n      var reader;\n      reader = new FileReader;\n      reader.onload = function() {\n        return resolve(reader.result);\n      };\n      reader.onerror = reject;\n      return reader.readAsDataURL(file);\n    });\n  };\n\n  Image.fromBlob = function(blob) {\n    return blob.getURL().then(function(url) {\n      return new Promise(function(resolve, reject) {\n        var img;\n        img = new Image;\n        img.onload = function() {\n          return resolve(img);\n        };\n        img.onerror = reject;\n        return img.src = url;\n      });\n    });\n  };\n\n}).call(this);\n",
       "type": "blob"
     },
     "lib/system-client": {
       "path": "lib/system-client",
-      "content": "(function() {\n  var __slice = [].slice;\n\n  module.exports = function() {\n    var Postmaster, UI, applicationProxy, postmaster, style, systemProxy;\n    Postmaster = require(\"postmaster\");\n    UI = require(\"ui\");\n    style = document.createElement(\"style\");\n    style.innerHTML = UI.Style.all;\n    document.head.appendChild(style);\n    postmaster = Postmaster();\n    applicationProxy = new Proxy({\n      ready: function() {\n        return postmaster.invokeRemote(\"childLoaded\");\n      }\n    }, {\n      get: function(target, property, receiver) {\n        return target[property] || function() {\n          return postmaster.invokeRemote.apply(postmaster, [\"application\", property].concat(__slice.call(arguments)));\n        };\n      }\n    });\n    systemProxy = new Proxy({\n      Observable: UI.Observable,\n      UI: UI\n    }, {\n      get: function(target, property, receiver) {\n        return target[property] || function() {\n          return postmaster.invokeRemote.apply(postmaster, [\"system\", property].concat(__slice.call(arguments)));\n        };\n      }\n    });\n    document.addEventListener(\"mousedown\", function() {\n      return applicationProxy.raiseToTop();\n    });\n    return {\n      system: systemProxy,\n      application: applicationProxy,\n      postmaster: postmaster\n    };\n  };\n\n}).call(this);\n",
+      "content": "(function() {\n  var __slice = [].slice;\n\n  module.exports = function() {\n    var Postmaster, UI, applicationProxy, postmaster, style, systemProxy;\n    Postmaster = require(\"postmaster\");\n    UI = require(\"ui\");\n    style = document.createElement(\"style\");\n    style.innerHTML = UI.Style.all;\n    document.head.appendChild(style);\n    postmaster = Postmaster();\n    applicationProxy = new Proxy({}, {\n      get: function(target, property, receiver) {\n        return target[property] || function() {\n          return postmaster.invokeRemote.apply(postmaster, [\"application\", property].concat(__slice.call(arguments)));\n        };\n      }\n    });\n    systemProxy = new Proxy({\n      Observable: UI.Observable,\n      UI: UI\n    }, {\n      get: function(target, property, receiver) {\n        return target[property] || function() {\n          return postmaster.invokeRemote.apply(postmaster, [\"system\", property].concat(__slice.call(arguments)));\n        };\n      }\n    });\n    document.addEventListener(\"mousedown\", function() {\n      return applicationProxy.raiseToTop();\n    });\n    return postmaster.invokeRemote(\"childLoaded\").then(function(result) {\n      var appData;\n      console.log(result);\n      appData = result != null ? result.ZineOS : void 0;\n      return appData;\n    })[\"catch\"](function(e) {\n      return console.error(e);\n    }).then(function(data) {\n      return {\n        system: systemProxy,\n        application: applicationProxy,\n        postmaster: postmaster\n      };\n    });\n  };\n\n}).call(this);\n",
       "type": "blob"
     },
     "main": {
       "path": "main",
-      "content": "(function() {\n  var Modal, Observable, SystemClient, Template, UI, application, element, system, _ref;\n\n  require(\"./extensions\");\n\n  SystemClient = require(\"./lib/system-client\");\n\n  _ref = SystemClient(), system = _ref.system, application = _ref.application;\n\n  UI = system.UI, Observable = system.Observable;\n\n  Modal = UI.Modal;\n\n  Template = require(\"./templates/main\");\n\n  element = Template({\n    open: function() {\n      return Modal.prompt(\"Path\", \"somefile.txt\").then(function(result) {\n        if (result) {\n          return system.readFile(result).then(function(blob) {\n            if (blob.type.match(/^image/)) {\n              return Image.fromBlob(blob).then(function(img) {\n                return document.body.appendChild(img);\n              });\n            } else if (blob.type.match(/^text/)) {\n              return blob.readAsText().then(function(text) {\n                var pre;\n                pre = document.createElement(\"pre\");\n                pre.textContent = text;\n                return document.body.appendChild(pre);\n              });\n            } else {\n              return console.warn(\"Can't yet handle \", blob.type);\n            }\n          });\n        }\n      });\n    }\n  });\n\n  document.body.appendChild(element);\n\n}).call(this);\n",
+      "content": "(function() {\n  var SystemClient;\n\n  require(\"./extensions\");\n\n  SystemClient = require(\"./lib/system-client\");\n\n  SystemClient().then(function(_arg) {\n    var Modal, Observable, Template, UI, application, element, system;\n    system = _arg.system, application = _arg.application;\n    UI = system.UI, Observable = system.Observable;\n    Modal = UI.Modal;\n    Template = require(\"./templates/main\");\n    element = Template({\n      open: function() {\n        return Modal.prompt(\"Path\", \"somefile.txt\").then(function(result) {\n          if (result) {\n            return system.readFile(result).then(function(blob) {\n              if (blob.type.match(/^image/)) {\n                return Image.fromBlob(blob).then(function(img) {\n                  return document.body.appendChild(img);\n                });\n              } else if (blob.type.match(/^text/)) {\n                return blob.readAsText().then(function(text) {\n                  var pre;\n                  pre = document.createElement(\"pre\");\n                  pre.textContent = text;\n                  return document.body.appendChild(pre);\n                });\n              } else {\n                return console.warn(\"Can't yet handle \", blob.type);\n              }\n            });\n          }\n        });\n      }\n    });\n    return document.body.appendChild(element);\n  });\n\n}).call(this);\n",
       "type": "blob"
     },
-    "templates/main": {
-      "path": "templates/main",
-      "content": "module.exports = function(data) {\n  \"use strict\";\n  return (function() {\n    var __root;\n    __root = require(\"/lib/hamlet-runtime\")(this);\n    __root.buffer(__root.element(\"main\", this, {}, function(__root) {\n      __root.buffer(__root.element(\"button\", this, {\n        \"click\": this.open\n      }, function(__root) {\n        __root.buffer(\"Open\\n\");\n      }));\n    }));\n    return __root.root;\n  }).call(data);\n};\n",
+    "pixie": {
+      "path": "pixie",
+      "content": "module.exports = {\"dependencies\":{\"postmaster\":\"distri/postmaster:master\",\"ui\":\"STRd6/ui:master\"}};",
       "type": "blob"
     },
     "templates/item": {
@@ -248,9 +254,9 @@
       "content": "module.exports = function(data) {\n  \"use strict\";\n  return (function() {\n    var __root;\n    __root = require(\"/lib/hamlet-runtime\")(this);\n    __root.buffer(__root.element(\"li\", this, {}, function(__root) {\n      __root.buffer(__root.element(\"span\", this, {\n        \"class\": [\"name\"]\n      }, function(__root) {\n        __root.buffer(this.name);\n      }));\n    }));\n    return __root.root;\n  }).call(data);\n};\n",
       "type": "blob"
     },
-    "extensions": {
-      "path": "extensions",
-      "content": "(function() {\n  Blob.prototype.readAsText = function() {\n    var file;\n    file = this;\n    return new Promise(function(resolve, reject) {\n      var reader;\n      reader = new FileReader;\n      reader.onload = function() {\n        return resolve(reader.result);\n      };\n      reader.onerror = reject;\n      return reader.readAsText(file);\n    });\n  };\n\n  Blob.prototype.getURL = function() {\n    return Promise.resolve(URL.createObjectURL(this));\n  };\n\n  Blob.prototype.readAsJSON = function() {\n    return this.readAsText().then(JSON.parse);\n  };\n\n  Blob.prototype.readAsDataURL = function() {\n    var file;\n    file = this;\n    return new Promise(function(resolve, reject) {\n      var reader;\n      reader = new FileReader;\n      reader.onload = function() {\n        return resolve(reader.result);\n      };\n      reader.onerror = reject;\n      return reader.readAsDataURL(file);\n    });\n  };\n\n  Image.fromBlob = function(blob) {\n    return blob.getURL().then(function(url) {\n      return new Promise(function(resolve, reject) {\n        var img;\n        img = new Image;\n        img.onload = function() {\n          return resolve(img);\n        };\n        img.onerror = reject;\n        return img.src = url;\n      });\n    });\n  };\n\n}).call(this);\n",
+    "templates/main": {
+      "path": "templates/main",
+      "content": "module.exports = function(data) {\n  \"use strict\";\n  return (function() {\n    var __root;\n    __root = require(\"/lib/hamlet-runtime\")(this);\n    __root.buffer(__root.element(\"main\", this, {}, function(__root) {\n      __root.buffer(__root.element(\"button\", this, {\n        \"click\": this.open\n      }, function(__root) {\n        __root.buffer(\"Open\\n\");\n      }));\n    }));\n    return __root.root;\n  }).call(data);\n};\n",
       "type": "blob"
     },
     "lib/hamlet-runtime": {
