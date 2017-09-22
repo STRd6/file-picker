@@ -14,9 +14,7 @@ module.exports = ->
 
   postmaster = Postmaster()
 
-  applicationProxy = new Proxy
-    ready: ->
-      postmaster.invokeRemote "childLoaded"
+  applicationProxy = new Proxy {}
   ,
     get: (target, property, receiver) ->
       target[property] or
@@ -39,6 +37,16 @@ module.exports = ->
   document.addEventListener "mousedown", ->
     applicationProxy.raiseToTop()
 
-  system: systemProxy
-  application: applicationProxy
-  postmaster: postmaster
+  postmaster.invokeRemote "childLoaded"
+  .then (result) ->
+    console.log result
+
+    appData = result?.ZineOS
+
+    return appData
+  .catch (e) ->
+    console.error e
+  .then (data) ->
+    system: systemProxy
+    application: applicationProxy
+    postmaster: postmaster
