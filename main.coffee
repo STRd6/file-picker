@@ -1,15 +1,15 @@
 require "./extensions"
 
-SystemClient = require "./lib/system-client"
+SystemClient = require "sys"
 
 SystemClient()
 .then ({system, application}) ->
   {UI, Observable} = system
-  
+
   {Modal} = UI
-  
+
   Template = require "./templates/main"
-  
+
   element = Template
     open: ->
       Modal.prompt "Path", "somefile.txt"
@@ -28,5 +28,5 @@ SystemClient()
                 document.body.appendChild pre
             else
               console.warn "Can't yet handle ", blob.type
-  
+
   document.body.appendChild element

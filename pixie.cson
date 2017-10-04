@@ -1,3 +1,2 @@
 dependencies:
-  postmaster: "distri/postmaster:master"
-  ui: "STRd6/ui:master"
+  sys: "STRd6/system-client:v0.1.0"
