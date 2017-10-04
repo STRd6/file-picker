@@ -1,2 +1,2 @@
 dependencies:
-  sys: "STRd6/system-client:v0.1.0"
+  sys: "STRd6/system-client:master"
